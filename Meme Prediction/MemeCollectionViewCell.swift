@@ -25,6 +25,8 @@ class MemeCollectionViewCell: UICollectionViewCell {
         imageView.clipsToBounds = true
         imageView.layer.cornerRadius = 8
         imageView.contentMode = .scaleAspectFit
+        imageView.layer.borderColor = UIColor.black.cgColor
+        imageView.layer.borderWidth = 3
         contentView.addSubview(imageView)
         contentView.backgroundColor = .black
         contentView.layer.cornerRadius = 8
