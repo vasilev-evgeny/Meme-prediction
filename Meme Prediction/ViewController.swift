@@ -17,7 +17,8 @@ class ViewController: UIViewController {
     var memeMamager  = MemeManager()
     var memes : [Meme] = []
     var memeImageUrl = ""
-    var predictionTapped = false
+    var memeImages : [UIImage] = []
+    
     
     //MARK: - Create UI
     
@@ -72,7 +73,7 @@ class ViewController: UIViewController {
         button.backgroundColor = .systemRed
         button.layer.cornerRadius = 5
         button.isUserInteractionEnabled = false
-        button.addTarget(self, action: #selector(dislikeButtonTapped), for: .touchUpInside)
+//        button.addTarget(self, action: #selector(dislikeButtonTapped), for: .touchUpInside)
         return button
     }()
     
@@ -104,15 +105,17 @@ class ViewController: UIViewController {
         view.clipsToBounds = false
         view.showsHorizontalScrollIndicator = false
         view.backgroundColor = .cyan
+        view.isUserInteractionEnabled = false
+        view.isHidden = true
         return view
     }()
     
-    //MARK: - Properties
+    //MARK: - Set Delegates
     
-    func setProperties() {
+    func setDelegates() {
         memesCollectionView.delegate = self
         memesCollectionView.dataSource = self
-        memesCollectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "MemeCell")
+        memesCollectionView.register(MemeCollectionViewCell.self, forCellWithReuseIdentifier: "MemeCell")
     }
     
     //MARK: - Lifecycle
@@ -121,7 +124,7 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         setupViews()
         setConstraints()
-        setProperties()
+        setDelegates()
     }
     
     private func setupViews() {
@@ -142,31 +145,39 @@ class ViewController: UIViewController {
         URLSession.shared.dataTask(with: url, completionHandler: completion).resume()
     }
     
-    func downloadImage(from url: URL) -> UIImage {
-        print("Download Started")
+    func downloadImage(from url: URL, completion: @escaping (UIImage?) -> Void) {
         getData(from: url) { data, response, error in
-            guard let data = data, error == nil else { return }
-            print(response?.suggestedFilename ?? url.lastPathComponent)
-            print("Download Finished")
-            DispatchQueue.main.async() { [weak self] in
-                self?.memeImageView.image = UIImage(data: data)
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
             }
+            let image = UIImage(data: data)
+            completion(image)
         }
-        return UIImage()
     }
     
-    @objc func getMemeButtonTapped(sender: UIButton) {
+    @objc func getMemeButtonTapped(sender: UIButton) -> String {
         likeButton.isUserInteractionEnabled = true
         dislikeButton.isUserInteractionEnabled = true
+        memesCollectionView.isUserInteractionEnabled = true
+        memesCollectionView.isHidden = false
         buttonAnimate(sender: sender)
         memeMamager.getMeme { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let memes) :
                     self?.memes = memes
-                    self?.predictionTapped = true
-                    self?.memeImageUrl = memes.randomElement()!.url
-                    self?.downloadImage(from: URL(string: self!.memeImageUrl)!)
+                    //self?.memeImageUrl = memes.randomElement()!.url
+                    //self?.downloadImage(from: URL(string: self!.memeImageUrl)!)
+                    for meme in memes {
+                        if let url = URL(string: meme.url) {
+                            self?.downloadImage(from: url) { image in
+                                if let image = image {
+                                    self?.memeImages.append(image)
+                                }
+                            }
+                        }
+                    }
                     UIView.animate(withDuration: 0.5, delay: 0.2, options: .curveEaseOut, animations: {
                         self?.reactionButtonsStackView.alpha = 1
                         self?.reactionButtonsStackView.transform = .identity})
@@ -175,39 +186,7 @@ class ViewController: UIViewController {
                 }
             }
         }
-    }
-    
-    @objc func dislikeButtonTapped(sender: UIButton) {
-        buttonAnimate(sender: sender)
-        guard !memes.isEmpty else {
-            print("Мемы закончились!")
-            return
-        }
-        UIView.transition(
-            with: memeImageView,
-            duration: 0.3,
-            options: .transitionCrossDissolve,
-            animations: {
-                self.memeImageView.alpha = 0
-            },
-            completion: { _ in
-                let randomMem = self.memes.randomElement()!
-                let url = randomMem.url
-                if let index = self.memes.firstIndex(where: { $0.url == randomMem.url }) {
-                    self.memes.remove(at: index)
-                }
-                self.downloadImage(from: URL(string: url)!)
-                UIView.transition(
-                    with: self.memeImageView,
-                    duration: 0.3,
-                    options: .transitionCrossDissolve,
-                    animations: {
-                        self.memeImageView.alpha = 1
-                    }
-                )
-                print("Мемов осталось в массиве \(self.memes.count)")
-            }
-        )
+        return memeImageUrl
     }
     
     @objc func likeButtonTapped(sender: UIButton) {
@@ -317,18 +296,8 @@ extension ViewController : UICollectionViewDelegate, UICollectionViewDelegateFlo
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "MemeCell", for: indexPath) as?
-                UICollectionViewCell else {
+                MemeCollectionViewCell else {
             return UICollectionViewCell()
-        }
-        cell.backgroundColor = .black
-        cell.layer.cornerRadius = 8
-        let imageView = UIImageView()
-        imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true
-        cell.addSubview(imageView)
-        if predictionTapped == true {
-            self.memeImageUrl = memes.randomElement()!.url
-            imageView.image = downloadImage(from: URL(string: self.memeImageUrl)!)
         }
         return cell
     }
@@ -338,4 +307,8 @@ extension ViewController : UICollectionViewDelegate, UICollectionViewDelegateFlo
         return CGSize(width: avialableWidth, height: Constants.cellHeight)
     }
     
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard let cell = collectionView.cellForItem(at: indexPath) as? MemeCollectionViewCell else { return }
+        cell.imageView.image = memeImages.randomElement()
+    }
 }
