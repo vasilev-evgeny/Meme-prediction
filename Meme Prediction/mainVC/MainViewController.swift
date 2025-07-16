@@ -7,7 +7,7 @@
 
 import UIKit
 
-class ViewController: UIViewController {
+class MainViewController: UIViewController {
     
     enum Constants {
         static let cellHeight: CGFloat = 230
@@ -144,8 +144,8 @@ class ViewController: UIViewController {
         view.addSubview(reactionButtonsStackView)
         reactionButtonsStackView.addArrangedSubview(dislikeButton)
         reactionButtonsStackView.addArrangedSubview(likeButton)
-        view.addSubview(memesCollectionView)
         view.addSubview(savedMemesButton)
+        view.addSubview(memesCollectionView)
     }
     
     //MARK: - Action Func
@@ -153,6 +153,11 @@ class ViewController: UIViewController {
     @objc func savedMemesButtonTapped(sender: UIButton) {
         buttonAnimate(sender: sender)
         print("\(savedImages.count)")
+        print("\(savedRequests.count)")
+        let vc = SavedMemViewController()
+        vc.savedMemeImages = savedImages
+        vc.savedMemeRequests = savedRequests
+        self.present(vc, animated: true)
     }
     
     func getData(from url: URL, completion: @escaping (Data?, URLResponse?, Error?) -> ()) {
@@ -205,8 +210,16 @@ class ViewController: UIViewController {
         return memeImageUrl
     }
     
+    func saveReuestNClear() {
+        if memeRequestTextfield.text != nil {
+            savedRequests.append(memeRequestTextfield.text!)
+        } else {
+            print("Введи предсказание")
+        }
+    }
     @objc func likeButtonTapped(sender: UIButton) {
         buttonAnimate(sender: sender)
+        saveReuestNClear()
         likeAnimation()
         dislikeButton.isUserInteractionEnabled = false
         likeButton.isUserInteractionEnabled = false
@@ -403,7 +416,7 @@ class ViewController: UIViewController {
 
 //MARK: - Extensions CollectionView
 
-extension ViewController : UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UICollectionViewDataSource  {
+extension MainViewController : UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UICollectionViewDataSource  {
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return 3
@@ -468,7 +481,7 @@ extension ViewController : UICollectionViewDelegate, UICollectionViewDelegateFlo
 
 //MARK: - Extensions TextField
 
-extension ViewController : UITextFieldDelegate {
+extension MainViewController : UITextFieldDelegate {
     func textFieldDidEndEditing(_ textField: UITextField) {
         savedRequests.append(textField.text!)
     }
